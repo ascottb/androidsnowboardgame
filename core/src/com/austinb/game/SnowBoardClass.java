@@ -3,12 +3,16 @@ package com.austinb.game;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.scenes.scene2d.ui.Button;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.utils.TimeUtils;
 
 import java.util.Random;
@@ -30,9 +34,17 @@ public class SnowBoardClass extends ApplicationAdapter {
 	private boolean leftt_rightf;
 
 	private Rectangle[] trees;
-	private long lastMoveTime;
+	private long lastTreeMoveTime;
+	private long lastPlayerMoveTime;
 
-	Random rand = new Random();
+	private boolean alive;
+	private BitmapFont font;
+
+	private Random rand = new Random();
+	private int score;
+
+	private ImageButton pauseRestart;
+	private ImageButton.ButtonStyle pauseRestartStyle;
 
 	@Override
 	public void create () {
@@ -52,7 +64,7 @@ public class SnowBoardClass extends ApplicationAdapter {
 
 		rec = new Rectangle();
 		rec.x = screen_width / 2 - 60 / 2;
-		rec.y = screen_height - 60 - 20;
+		rec.y = screen_height - 60 - 40;
 		rec.width = 60;
 		rec.height = 60;
 		leftt_rightf = true;
@@ -62,8 +74,18 @@ public class SnowBoardClass extends ApplicationAdapter {
 		{
 			trees[i] = new Rectangle();
 		}
+		reinitialize ();
+	}
+
+	public void reinitialize () {
 		SetTreePositions(false, 0, 0, 0);
-		lastMoveTime = TimeUtils.nanoTime();
+		lastTreeMoveTime = TimeUtils.nanoTime();
+		lastPlayerMoveTime = TimeUtils.nanoTime();
+
+		alive = true;
+		font = new BitmapFont();
+		font.setColor(Color.BLACK);
+		score = 0;
 	}
 
 	@Override
@@ -73,8 +95,18 @@ public class SnowBoardClass extends ApplicationAdapter {
 
 		camera.update();
 
-		if(TimeUtils.nanoTime() - lastMoveTime > 10000000)
+		if((TimeUtils.nanoTime() - lastTreeMoveTime > 10000000) && alive)
 			UpdateTreePositions();
+		if(TimeUtils.nanoTime() - lastPlayerMoveTime > 1000000000 && alive) {
+			score++;
+			lastPlayerMoveTime = TimeUtils.nanoTime();
+		}
+
+		for (int i = 0; i < 20; i++) {
+			if (rec.overlaps(trees[i])) {
+				alive = false;
+			}
+		}
 
 		batch.setProjectionMatrix(camera.combined);
 		batch.begin();
@@ -86,7 +118,11 @@ public class SnowBoardClass extends ApplicationAdapter {
 		} else {
 			batch.draw(snowboard_right, rec.x, rec.y);
 		}
-		//batch.draw(logo, 0, 0);
+		if (!alive){
+			font.draw(batch, "Dead", screen_width / 2 - 20, screen_height / 2);
+		}
+		font.draw(batch, Integer.toString(score), screen_width - 40, screen_height - 30);
+
 		batch.end();
 
 		InputMovement();
@@ -104,14 +140,24 @@ public class SnowBoardClass extends ApplicationAdapter {
 
 	private void InputMovement () {
 		if(Gdx.input.isTouched()) {
-			Vector3 touchPos = new Vector3();
-			touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
-			camera.unproject(touchPos);
-			//rec.x = touchPos.x - 64 / 2;
-			if (touchPos.x < (480 / 2))
-				leftt_rightf = true;
-			else
-				leftt_rightf = false;
+			if (!alive) {
+				reinitialize();
+			}
+			else {
+				Vector3 touchPos = new Vector3();
+				touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
+				camera.unproject(touchPos);
+				//rec.x = touchPos.x - 64 / 2;
+				if (touchPos.x < (screen_width / 2)) {
+					leftt_rightf = true;
+					if (rec.getX() > 0)
+						rec.x = rec.getX() - 3;
+				} else {
+					leftt_rightf = false;
+					if (rec.getX() < (screen_width - 60))
+						rec.x = rec.getX() + 3;
+				}
+			}
 		}
 	}
 
@@ -122,17 +168,17 @@ public class SnowBoardClass extends ApplicationAdapter {
 		}
 		else {
 			for (int i = 0; i < 20; i++) {
-				trees[i].setX(rand.nextInt(screen_width - 30));
-				trees[i].setY(rand.nextInt(screen_height - 40));
+				trees[i].setX(rand.nextInt(screen_width) - 30);
+				trees[i].setY(rand.nextInt(screen_height) - 39 - 300);
 				trees[i].width = 30;
-				trees[i].height = 40;
+				trees[i].height = 39;
 			}
 		}
 	}
 
 	private void UpdateTreePositions () {
 		for (int i = 0; i < 20; i++) {
-			SetTreePositions(true, i, trees[i].x, (trees[i].y + 1));
+			SetTreePositions(true, i, trees[i].x, (trees[i].y + 3));
 			if (trees[i].y > screen_height) {
 				trees[i].setX(rand.nextInt(screen_width - 30));
 				trees[i].setY(0-40);
